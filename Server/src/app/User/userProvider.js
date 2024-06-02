@@ -1,33 +1,30 @@
-const baseResponseStatus = require("../../../config/baseResponseStatus");
 const { pool } = require("../../../config/database");
-const { errResponse } = require("../../../config/response");
 const { logger } = require("../../../config/winston");
 
 const userDao = require("./userDao");
 
-// Provider: Read 비즈니스 로직 처리
-
-exports.idCheck = async function (identification) {
+exports.emailCheck = async function (email) {
   const connection = await pool.getConnection(async (conn) => conn);
-  const idCheckResult = await userDao.selectUserId(connection, identification);
+  const emailCheckResult = await userDao.selectUserEmail(connection, email);
   connection.release();
 
-  return idCheckResult;
+  return emailCheckResult;
 };
 
-exports.accountCheck = async function (identification) {
+exports.passwordCheck = async function (selectUserPasswordParams) {
   const connection = await pool.getConnection(async (conn) => conn);
-  const userAccountResult = await userDao.selectUserAccount(connection, identification);
+  const passwordCheckResult = await userDao.selectUserPassword(
+    connection,
+    selectUserPasswordParams
+  );
+  connection.release();
+  return passwordCheckResult[0];
+};
+
+exports.accountCheck = async function (email) {
+  const connection = await pool.getConnection(async (conn) => conn);
+  const userAccountResult = await userDao.selectUserAccount(connection, email);
   connection.release();
 
   return userAccountResult;
-};
-
-exports.retrieveUserHashedPassword = async function (userIdx) {
-  const connection = await pool.getConnection(async (conn) => conn);
-  const userSecurityResult = await userDao.selectUserHashedPassword(connection, userIdx);
-  connection.release();
-
-  return userSecurityResult[0];
-
 };

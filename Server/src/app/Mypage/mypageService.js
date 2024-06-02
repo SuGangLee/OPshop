@@ -3,61 +3,71 @@ const { pool } = require("../../../config/database");
 const secret_config = require("../../../config/secret");
 const mypageProvider = require("./mypageProvider");
 const mypageDao = require("./mypageDao");
+const baseResponse = require("../../../config/baseResponseStatus");
+const { response } = require("../../../config/response");
+const { errResponse } = require("../../../config/response");
 
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { connect } = require("http2");
 
-// 프로필 사진 변경 
-exports.editProfileImg = async function (
-  userId, imageUrl
+exports.postMyAddress = async function (
+  userId,
+  name,
+  road_address,
+  detail_address,
+  zipcode,
+  is_main
 ) {
+  const connection = await pool.getConnection(async (conn) => conn);
   try {
+    connection.beginTransaction();
 
-    const connection = await pool.getConnection(async (conn) => conn);
-    const editProfileImg = await mypageDao.updateUserProfileImg(connection,userId,imageUrl);
-    connection.release();
-    const editProfileImgResult = await mypageProvider.getUserImg(userId);
-    return { isSuccess: true, code: 200, result: editProfileImgResult[0] };
+    const addMyAddress = await mypageDao.insertAddress(connection, [
+      userId,
+      name,
+      road_address,
+      detail_address,
+      zipcode,
+      is_main,
+    ]);
+    console.log(addMyAddress);
+    connection.commit();
 
- 
+    return response(baseResponse.SUCCESS, {
+      insertAddressId: addMyAddress.insertId,
+    });
   } catch (err) {
-    logger.error(`App - editProfileImg Service error\n: ${err.message}`);
-    return {
-      isSuccess: false,
-      code: 401,
-      message: "App - editProfileImg Service error",
-    };
+    connection.rollback();
+    logger.error(`App - postMyAddress Service error\n: ${err.message}`);
+    return errResponse(baseResponse.DB_ERROR);
+  } finally {
+    connection.release();
   }
 };
 
+exports.cancelOrder = async function (userId, orderId) {
+  const connection = await pool.getConnection(async (conn) => conn);
+  try {
+    connection.beginTransaction();
 
-// 닉네임 변경
-exports.editNickname = async function (
-    userId, nickname
-  ) {
-    try {
-      if (nickname.length > 20) 
-        return {
-          isSuccess: false,
-          code: 109,
-          message: "닉네임은 10자리 미만으로 입력해주세요.",
-        };
-      
-      console.log(nickname) ;
-      const connection = await pool.getConnection(async (conn) => conn);
-      const editNickname = await mypageDao.updateUserNickname(connection,userId,nickname);
-      connection.release();
-      const editNicknameResult = await mypageProvider.getUserNickname(userId);
-      return { isSuccess: true, code: 200, result: editNicknameResult[0] };
-  
-   
-    } catch (err) {
-      logger.error(`App - editNickname Service error\n: ${err.message}`);
-      return {
-        isSuccess: false,
-        code: 401,
-        message: "App - editNickname Service error",
-      };
-    }
-  };
+    const cancelOrderResult = await mypageDao.cancelStatusOrder(connection, [
+      userId,
+      orderId,
+    ]);
+    console.log(cancelOrderResult);
+    connection.commit();
+
+    return response({
+      isSuccess: true,
+      code: 1000,
+      message: "주문 취소 요청 성공",
+    });
+  } catch (err) {
+    connection.rollback();
+    logger.error(`App - cancelOrder Service error\n: ${err.message}`);
+    return errResponse(baseResponse.DB_ERROR);
+  } finally {
+    connection.release();
+  }
+};

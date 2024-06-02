@@ -1,101 +1,118 @@
 const jwtMiddleware = require("../../../config/jwtMiddleware");
-const mypageProvider = require("../../app/Mypage/mypageProvider");
-const mypageService = require("../../app/Mypage/mypageService");
+const mypageProvider = require("./mypageProvider");
+const mypageService = require("./mypageService");
 const baseResponse = require("../../../config/baseResponseStatus");
 const { response, errResponse } = require("../../../config/response");
 
+const regexEmail = require("regex-email");
+const { emit } = require("nodemon");
+
+const axios = require("../../../node_modules/axios");
+const Cache = require("memory-cache");
+const CryptoJS = require("crypto-js");
+
+const crypto = require("crypto");
+
 /**
- * API No.
- * API Name : 내 포즈자랑 조회
- * [GET] /filme/mypage/pose
+ * 마이페이지 조회
  */
-exports.getMyPoseList = async function (req, res) {
-  const userIdFromJWT = req.verifiedToken.userInfo;
-  if (!userIdFromJWT) return res.send(response(baseResponse.TOKEN_EMPTY));
-
-  const getMyPoseResponse = await mypageProvider.getMyPoseList(userIdFromJWT);
-
-  return res.send(getMyPoseResponse);
-};
-
-exports.getLikePoseList = async function (req, res) {
-  const userIdFromJWT = req.verifiedToken.userInfo;
-  if (!userIdFromJWT) return res.send(response(baseResponse.TOKEN_EMPTY));
-
-  const getLikePoseResponse = await mypageProvider.getLikePoseList(
-    userIdFromJWT
-  );
-
-  return res.send(getLikePoseResponse);
+exports.getMypage = async function (req, res) {
+  const userId = req.verifiedToken.userId;
+  const mypage = await mypageProvider.getMypage(userId);
+  return res.send(response(baseResponse.TOKEN_VERIFICATION_SUCCESS, mypage));
 };
 
 /**
- *
- * API No.
- * API Name : 내 정보 조회
- * [GET] /filme/mypage/myinfo
+ * 주소 조회
  */
-exports.getMyInfo = async function (req, res) {
-  const userIdFromJWT = req.verifiedToken.userInfo;
-  if (!userIdFromJWT) return res.send(response(baseResponse.TOKEN_EMPTY));
-
-  const getMyInfoResponse = await mypageProvider.getMyInfo(userIdFromJWT);
-
-  return res.send(getMyInfoResponse);
+exports.getMyAddress = async function (req, res) {
+  const userId = req.verifiedToken.userId;
+  const myAddress = await mypageProvider.getMyAddress(userId);
+  return res.send(response(baseResponse.SUCCESS, myAddress));
 };
 
-//프로필 사진 수정
-exports.editProfileImg = async function (req, res) {
-  const userIdFromJWT = req.verifiedToken.userInfo;
-  const imageURL = req.file.location;
+/**
+ * 주소 추가
+ */
+exports.postMyAddress = async function (req, res) {
+  const userId = req.verifiedToken.userId;
+  const { name, road_address, detail_address, zipcode, is_main } = req.body;
 
-  if (!userIdFromJWT) return res.send(response(baseResponse.TOKEN_EMPTY));
-  if (!imageURL)
-    return res.json({
-      isSuccess: false,
-      code: 210,
-      message: "변경할 사진을 선택하세요.",
-    });
-
-  const editProfileImgResult = await mypageService.editProfileImg(
-    userIdFromJWT,
-    imageURL
+  const setMyAddress = await mypageService.postMyAddress(
+    userId,
+    name,
+    road_address,
+    detail_address,
+    zipcode,
+    is_main
   );
-  return res.send(editProfileImgResult);
+  return res.send(setMyAddress);
 };
 
-//닉네임 수정
-exports.editNickname = async function (req, res) {
-  const userIdFromJWT = req.verifiedToken.userInfo;
-  const { nickname } = req.body;
+/**
+ * 좋아요 상품 목록 조회
+ */
+exports.getLikedList = async function (req, res) {
+  const userId = req.verifiedToken.userId;
 
-  if (!userIdFromJWT) return res.send(response(baseResponse.TOKEN_EMPTY));
-  if (!nickname)
-    return res.json({
-      isSuccess: false,
-      code: 105,
-      message: "닉네임을 입력 해주세요.",
-    });
+  const getLikedList = await mypageProvider.getLikedList(userId);
 
-  const editNickname = await mypageService.editNickname(
-    userIdFromJWT,
-    nickname
-  );
-  return res.send(editNickname);
+  return res.send(response(baseResponse.SUCCESS, getLikedList));
 };
 
-exports.getTodayInfo = async function (req, res) {
-  const memberIdx = req.verifiedToken.userInfo;
+/**
+ * 구독 상점 목록 조회
+ */
+exports.getSubscribeList = async function (req, res) {
+  const userId = req.verifiedToken.userId;
 
-  const getTodayInfoResult = await mypageProvider.getTodayInfo(memberIdx);
-  return res.send(getTodayInfoResult);
+  const getSubscribeList = await mypageProvider.getSubscribeList(userId);
+
+  return res.send(response(baseResponse.SUCCESS, getSubscribeList));
 };
 
-// 다른 사람 정보 조회
-exports.getOtherInfo = async function (req, res) {
-  const memberIdx = req.params.memberIdx;
-  console.log(memberIdx);
+/**
+ * 내가 작성한 리뷰 목록+ 상세 리뷰
+ */
+exports.getMyReviewList = async function (req, res) {
+  const userId = req.verifiedToken.userId;
+  const reviewId = req.query.reviewId;
 
-  const getOtherInfoResult = await mypageProvider.getOtherInfo(memberIdx);
-  return res.send(getOtherInfoResult);
+  if (!reviewId) {
+    const getMyReviewList = await mypageProvider.getMyReviewList(userId);
+    return res.send(response(baseResponse.SUCCESS, getMyReviewList));
+  } else {
+    const getMyDetailReview = await mypageProvider.getMyDetailReview(reviewId);
+    return res.send(response(baseResponse.SUCCESS, getMyDetailReview));
+  }
+};
+
+/**
+ * 주문 내역 목록 조회
+ */
+exports.getMyOrderList = async function (req, res) {
+  const userId = req.verifiedToken.userId;
+
+  const getMyOrderList = await mypageProvider.getMyOrderList(userId);
+  return res.send(response(baseResponse.SUCCESS, getMyOrderList));
+};
+
+/**
+ * 주문 취소
+ */
+exports.orderCancel = async function (req, res) {
+  const userId = req.verifiedToken.userId;
+  const orderId = req.params.orderId;
+  if (!orderId) {
+    return res.send(
+      response({
+        isSuccess: false,
+        code: 102,
+        message: "주문 ID 입력해주세요.",
+      })
+    );
+  }
+
+  const cancelOrder = await mypageService.cancelOrder(userId, orderId);
+  return res.send(cancelOrder);
 };

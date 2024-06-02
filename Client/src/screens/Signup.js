@@ -1,108 +1,91 @@
-import React, { useEffect, useCallback } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  StatusBar,
-  TouchableOpacity,
-  Keyboard,
-  Alert,
-  ScrollView,
-} from "react-native";
-import Input from "../components/Input";
-import Loader from "../components/Loader";
-import Agreement from "../components/Agreement";
+import React, { useState, useRef, useContext } from "react";
+import { Button, Image, Input } from "../components";
+import styled from "styled-components/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { UserContext } from "../contexts";
+import { Alert, TextInput } from "react-native";
 import axios from "axios";
+import Constants from "expo-constants"; //현재 단말기의 시스템 정보를 불러오기 위함
+const { manifest } = Constants;
 
-export default function Signup({ navigation }) {
-  const [inputs, setInputs] = React.useState({
-    identification: "",
-    password: "",
-    name: "",
-  });
-  const [errors, setErrors] = React.useState({});
-  const [loading, setLoading] = React.useState(false);
-  const [disabled, setDisabled] = React.useState(true);
-  const [errorMessage, setErrorMessage] = React.useState("");
+const Container = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  background-color: ${({ theme }) => theme.background};
+  padding: 50px 20px;
+`;
 
-  useEffect(() => {
-    if (errorMessage == "사용 가능한 아이디입니다.") {
-      if (inputs.identification && inputs.password && inputs.name) {
-        setDisabled(false);
-      }
-    }
-  }, [errorMessage, inputs]);
+const StyledText = styled.Text`
+  font-size: 30px;
+  color: #111;
+  font-weight: 600;
+  margin-bottom: 15px;
+`;
 
-  const validateIdDuplicate = useCallback(async () => {
-    try {
-      axios({
-        method: "get",
-        url: `http://13.125.249.247/filme/user/id-check?identification=${inputs.identification}`,
-      })
-        .then(function (response) {
-          setErrorMessage(response.data.message);
-        })
-        .catch(function (error) {
-          setErrorMessage("중복된 아이디입니다.");
-        });
-    } catch (e) {
-    } finally {
-    }
-  }, [inputs]);
+// const signup = async ({ email, password, name }) => {
+//   setLoading(true);
+//   setTimeout(async () => {
+//     setLoading(false);
+//     console.log(inputs);
+//     await axios
+//       .post("http://13.125.249.247/filme/user", {
+//         identification: `${inputs.identification}`,
+//         password: `${inputs.password}`,
+//         name: `${inputs.name}`,
+//       })
+//       .then((response) => {
+//         if (response.data.isSuccess != true) {
+//           Alert.alert("오류", response.data.message);
+//         } else {
+//           Alert.alert("가입이 완료되었습니다.");
+//           navigation.navigate("Login");
+//         }
+//       })
+//       .catch((err) => {
+//         console.log(err);
+//         Alert.alert("오류", err.message);
+//       });
+//   }, 2000);
+// };
+const Signup = ({ navigation }) => {
+  const { setUser } = useContext(UserContext);
+  const insets = useSafeAreaInsets();
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const refEmail = useRef(null);
+  const refPassword = useRef(null);
+  const refPasswordConfirm = useRef(null);
+  const refPhoneNumber = useRef(null);
 
-  const validate = () => {
-    Keyboard.dismiss();
-
-    let valid = true;
-    if (!inputs.identification) {
-      handleError("아이디를 입력해주세요!", "identification");
-      valid = false;
-    } else if (inputs.identification.length > 19) {
-      handleError("19자 이하의 아이디를 입력해주세요!", "identification");
-      valid = false;
-    } else if (inputs.identification.match(/[\s]/g)) {
-      handleError("공백을 제거해주세요!", "identification");
-      valid = false;
-    } else if (inputs.identification.match(/[`~!@#$%^&*|\\\'\";:\/?]/gi)) {
-      handleError("특수문자를 제거해주세요!", "identification");
-      valid = false;
-    }
-    if (!inputs.password) {
-      handleError("비밀번호를 입력해주세요!", "password");
-      valid = false;
-    } else if (inputs.password.length < 6) {
-      handleError("6자 이상의 비밀번호를 입력해주세요!", "password");
-      valid = false;
-    } else if (inputs.password.length > 12) {
-      handleError("12자 이하의 비밀번호를 입력해주세요!", "password");
-      valid = false;
-    }
-    if (!inputs.name) {
-      handleError("닉네임을 입력해주세요!", "name");
-      valid = false;
-    }
-    if (valid) {
-      //console.log([inputs.id,inputs.password])
-      signup(inputs);
-    }
-  };
-  const signup = async (inputs) => {
-    setLoading(true);
+  const _handleSignupBtnPress = async () => {
+    // { email, password, name } 원래 파라미터에 들어가 있던거
     setTimeout(async () => {
-      setLoading(false);
-      console.log(inputs);
+      console.log(email, password, name);
       await axios
-        .post("http://13.125.249.247/filme/user", {
-          identification: `${inputs.identification}`,
-          password: `${inputs.password}`,
-          name: `${inputs.name}`,
-        })
+        .post(
+          `http://${manifest.debuggerHost.split(":").shift()}:3000/opshop/join`,
+          {
+            email: `${email}`,
+            password: `${password}`,
+            nickname: `${name}`,
+          }
+        )
         .then((response) => {
-          if (response.data.isSuccess != true) {
-            Alert.alert("오류", response.data.message);
+          if (password !== passwordConfirm) {
+            alert("비밀번호와 비밀번호 확인이 같지 않습니다.");
           } else {
-            Alert.alert("가입이 완료되었습니다.");
-            navigation.navigate("Login");
+            console.log(response.data);
+            if (response.data.isSuccess != true) {
+              Alert.alert("오류", response.data.message);
+            } else {
+              Alert.alert("가입이 완료되었습니다.");
+              navigation.navigate("로그인");
+            }
           }
         })
         .catch((err) => {
@@ -112,116 +95,79 @@ export default function Signup({ navigation }) {
     }, 2000);
   };
 
-  const handleOnChange = (text, input) => {
-    setInputs((prevState) => ({ ...prevState, [input]: text }));
-  };
-  const handleError = (errorMessage, input) => {
-    setErrors((prevState) => ({ ...prevState, [input]: errorMessage }));
-  };
-
   return (
-    <ScrollView style={styles.container}>
-      <Loader visible={loading} />
-      <StatusBar backgroundColor="white" barStyle="dark-content" />
+    <KeyboardAwareScrollView extraScrollHeight={100}>
+      <Container insets={insets}>
+        <Image
+          style={{ width: 200, height: 200 }}
+          url="https://ifh.cc/g/M2TJZp.png"
+        />
 
-      <View style={styles.inputSection}>
-        <Text style={styles.headerText}>
-          아래의 사항을 빠짐없이 기입해 주세요.
-        </Text>
+        <StyledText>회원가입</StyledText>
         <Input
-          label="ID"
-          placeholder="5 ~ 19자 (영어, 숫자 가능)"
-          iconnickname="person-outline"
-          error={errors.identification}
-          onFocus={() => {
-            handleError(null, "identification");
+          label="이름"
+          placeholder="홍길동"
+          returnKeyType="next"
+          value={name}
+          onChangeText={setName}
+          onSubmitEditing={() => {
+            refEmail.current.focus();
           }}
-          onChangeText={(text) => handleOnChange(text, "identification")}
-        />
-        <View style={styles.checkIdSection}>
-          <Text style={styles.errorText}>{errorMessage}</Text>
-          <TouchableOpacity
-            style={styles.chkDupButton}
-            onPress={validateIdDuplicate}
-          >
-            <Text style={{ fontSize: 12 }}>중복확인</Text>
-          </TouchableOpacity>
-        </View>
-        <Input
-          label="Password"
-          placeholder="6 ~ 12자 (영어, 숫자 필수 포함)"
-          iconnickname="md-lock-closed-outline"
-          error={errors.password}
-          onFocus={() => {
-            handleError(null, "password");
-          }}
-          onChangeText={(text) => handleOnChange(text, "password")}
-          password
         />
         <Input
-          label="Nickname"
-          placeholder="닉네임"
-          iconnickname="heart-circle-outline"
-          error={errors.name}
-          onFocus={() => {
-            handleError(null, "name");
+          ref={refEmail}
+          label="이메일"
+          placeholder="aaaa@email.com"
+          returnKeyType="next"
+          value={email}
+          onChangeText={setEmail}
+          onSubmitEditing={() => {
+            refPassword.current.focus();
           }}
-          onChangeText={(text) => handleOnChange(text, "name")}
+          autoCompleteType="email"
+          keyboardType="email-address"
         />
-        <Text style={styles.headerText}>서비스 이용 약관에 동의해 주세요.</Text>
-        <Agreement />
-        <TouchableOpacity
-          disabled={disabled}
-          onPress={validate}
-          style={styles.signupButton}
-        >
-          <Text style={{ color: "#505050", fontSize: 20, fontWeight: "bold" }}>
-            가입
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        <Input
+          ref={refPassword}
+          label="비밀번호"
+          placeholder="password"
+          returnKeyType="next"
+          value={password}
+          onChangeText={setPassword}
+          isPassword={true}
+          onSubmitEditing={() => {
+            refPasswordConfirm.current.focus();
+          }}
+          secureTextEntry={true}
+        />
+
+        <TextInput style={{ height: 0.1 }} />
+        <Input
+          ref={refPasswordConfirm}
+          label="비밀번호 확인"
+          placeholder="password confirm"
+          returnKeyType="next"
+          value={passwordConfirm}
+          onChangeText={setPasswordConfirm}
+          isPassword={true}
+          onSubmitEditing={() => {
+            refPhoneNumber.current.focus();
+          }}
+          secureTextEntry={true}
+        />
+        <Input
+          ref={refPhoneNumber}
+          label="휴대폰번호"
+          placeholder="'-'는 제외하고 입력하세요."
+          returnKeyType="next"
+          value={phoneNumber}
+          onChangeText={setPhoneNumber}
+        />
+
+        <Button title="회원가입" onPress={_handleSignupBtnPress} />
+      </Container>
+    </KeyboardAwareScrollView>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  inputSection: {
-    marginHorizontal: 20,
-  },
-  headerText: {
-    marginVertical: 20,
-    fontSize: 20,
-    color: "#505050",
-  },
-  checkIdSection: {
-    flexDirection: "row",
-  },
-  errorText: {
-    flex: 1,
-    width: "50%",
-    height: 17,
-    color: "gray",
-    marginLeft: 10,
-  },
-  chkDupButton: {
-    backgroundColor: "#E8E8E8",
-    borderRadius: 10,
-    width: 60,
-    height: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  signupButton: {
-    backgroundColor: "#E8E8E8",
-    borderRadius: 10,
-    width: "100%",
-    height: 45,
-    marginVertical: 5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+export default Signup;

@@ -1,5 +1,4 @@
-package-lock.json
-node_modules
-log
-aws.js
-database.js
+./config/database.js
+./config/secret.js
+log/
+yarn.lock
